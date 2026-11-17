@@ -34,12 +34,31 @@ export function makeCarMesh(kind, paint) {
     g.add(sign);
   }
   if (kind === 'police') {
-    const bar = new THREE.Mesh(bodyGeo, new THREE.MeshLambertMaterial({ color: COLOURS.policeBlue }));
-    bar.scale.set(w * 0.7, 0.18, 0.5); bar.position.set(0, h + 0.62, -0.2);
-    g.add(bar);
+    // Light bar: separate red and blue halves so updatePolice can
+    // blink them against each other. Materials live on userData.
+    const redMat = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+    const blueMat = new THREE.MeshBasicMaterial({ color: 0x2a6aff });
+    const barR = new THREE.Mesh(bodyGeo, redMat);
+    barR.scale.set(w * 0.34, 0.18, 0.5); barR.position.set(-w * 0.18, h + 0.62, -0.2);
+    const barB = new THREE.Mesh(bodyGeo, blueMat);
+    barB.scale.set(w * 0.34, 0.18, 0.5); barB.position.set(w * 0.18, h + 0.62, -0.2);
+    g.add(barR, barB);
+    g.userData.lightBar = { redMat, blueMat, redMesh: barR, blueMesh: barB };
     const stripe = new THREE.Mesh(bodyGeo, new THREE.MeshLambertMaterial({ color: COLOURS.policeBlue }));
     stripe.scale.set(w + 0.02, 0.2, l * 0.9); stripe.position.y = 0.62;
     g.add(stripe);
+  }
+  // Headlights (white, front) and tail lights (red, rear) on every car:
+  // small emissive boxes that make traffic read at golden hour.
+  const headMat = new THREE.MeshBasicMaterial({ color: 0xfff6c8 });
+  const tailMat = new THREE.MeshBasicMaterial({ color: 0xff3524 });
+  for (const s of [-1, 1]) {
+    const head = new THREE.Mesh(bodyGeo, headMat);
+    head.scale.set(0.38, 0.18, 0.08); head.position.set(s * w * 0.3, 0.68, l / 2 + 0.02);
+    g.add(head);
+    const tail = new THREE.Mesh(bodyGeo, tailMat);
+    tail.scale.set(0.38, 0.16, 0.08); tail.position.set(s * w * 0.3, 0.7, -l / 2 - 0.02);
+    g.add(tail);
   }
   g.userData.wheels = [];
   for (const [wx, wz] of [[-w / 2, l / 2 - 0.8], [w / 2, l / 2 - 0.8], [-w / 2, -l / 2 + 0.8], [w / 2, -l / 2 + 0.8]]) {

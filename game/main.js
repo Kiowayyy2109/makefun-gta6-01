@@ -15,6 +15,9 @@ import { createCombat, tryAttack, updateCombat, reload } from './combat.js';
 import { createHud, showHud, updateHud, setMessage } from './hud.js';
 import { createAudio } from './audio.js';
 import { applyShot } from './shots.js';
+import { buildSigns } from './signs.js';
+import { createLandmarks, updateLandmarks } from './landmarks.js';
+import { spawnParcels, updateParcels, restoreParcels } from './activities.js';
 
 const params = new URLSearchParams(location.search);
 const seed = parseInt(params.get('seed') || '1', 10) || 1;
@@ -36,6 +39,9 @@ const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 90
 camera.position.set(30, 18, 60);
 
 const city = buildCity(scene, seed);
+const signs = buildSigns(scene, mulberry32(seed + 5));
+const landmarks = createLandmarks(scene, mulberry32(seed + 9));
+const parcels = spawnParcels(scene);
 const input = createInput();
 const audio = createAudio();
 const hud = createHud();
@@ -50,13 +56,14 @@ const G = {
   police: { cars: [], foot: [] },
   wanted: createWanted(),
   missions: null, combat: null,
+  signs, landmarks, parcels,
   crimeFlash: 0, sirenTimer: 0, stepTimer: 0, ramCooldown: 0,
 };
 G.missions = createMissions(scene, city.beacon);
 G.combat = createCombat(scene);
 G.player = createPlayer(scene, 12, 12);
-G.cars = spawnTraffic(scene, seed, 13);
-G.peds = spawnPedestrians(scene, seed, 16);
+G.cars = spawnTraffic(scene, seed, 20);
+G.peds = spawnPedestrians(scene, seed, 28);
 
 // Parked cars the player can take, including the red sport coupe for Job 2.
 const parkedSpots = [
@@ -81,6 +88,7 @@ G.saveProgress = () => {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       money: G.player.money, mission: G.missions.index, storyDone: G.missions.storyDone,
+      parcels: G.parcels ? G.parcels.found : 0,
     }));
   } catch (e) {}
 };
@@ -163,6 +171,7 @@ function startGame(fromSave) {
     G.player.money = save.money || TUNING.startMoney;
     startMission(G.missions, scene, Math.min(save.mission || 0, MISSIONS.length - 1));
     if (save.storyDone) G.missions.storyDone = true;
+    if (save.parcels) restoreParcels(G.parcels, save.parcels);
   } else {
     G.player.money = TUNING.startMoney;
     startMission(G.missions, scene, 0);
@@ -307,8 +316,10 @@ function animate() {
       const job = MISSIONS[G.missions.index - 1];
       G.flashMessage('Job complete! +$' + job.reward + ' — next: ' + MISSIONS[G.missions.index].title, 5);
     } else if (missionEvent === 'story') {
-      G.flashMessage('STORY COMPLETE! All five jobs done. Port Aurelia is yours.', 8);
+      G.flashMessage('STORY COMPLETE! All seven jobs done. Port Aurelia is yours.', 8);
     }
+    updateParcels(G.parcels, G, dt);
+    updateLandmarks(G.landmarks, dt);
     updateCombat(G);
     updateCamera(camera, p, dt);
     updateHud(hud, G, dt);
@@ -326,6 +337,8 @@ function animate() {
     // Shot scenes keep the world alive so traffic and police move.
     updateTraffic(G.cars, dt, G.colliders);
     updatePedestrians(G.peds, dt, G.cars);
+    updateLandmarks(G.landmarks, dt);
+    updateParcels(G.parcels, G, 0);
     if (G.wanted.level > 0) {
       updatePolice(G.police, dt, G.player, G.colliders, () => {});
     }

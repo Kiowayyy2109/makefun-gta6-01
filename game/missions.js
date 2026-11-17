@@ -1,6 +1,10 @@
-// Missions and story: five jobs from Nadia Cole, in order. Each job has a
-// gold beacon in the world, a HUD objective and a cash reward. Finishing
-// one advances to the next; finishing all five completes the story.
+// Missions and story: seven jobs from Nadia Cole, in order. Each job has
+// a gold beacon in the world, a HUD objective and a cash reward. Kinds:
+// reach (get to the marker), deliverCar (arrive driving the sport
+// coupe), race (hit five gates in order against the clock), timed
+// (reach the marker before the timer dies) and escape (lose the heat).
+// Race and timed jobs reset their clock when it runs out — no harsh
+// punishment, the job simply starts its timer again.
 import * as THREE from 'three';
 import { MISSIONS } from './config.js';
 import { addWanted } from './police.js';
@@ -10,6 +14,7 @@ export function createMissions(scene, beacon) {
     index: 0, done: false, storyDone: false,
     escapeTimer: 0, startedAt: 0, beacon, heatSet: false,
     marker: null, markerRing: null,
+    raceGate: 0, timeLeft: 0,
   };
 }
 
@@ -36,21 +41,38 @@ export function currentMission(m) {
   return m.index < MISSIONS.length ? MISSIONS[m.index] : null;
 }
 
+// The point the marker and beacon should sit on right now: for a race
+// that is the current gate, for everything else the job target.
+export function currentTarget(m) {
+  const job = currentMission(m);
+  if (!job) return null;
+  if (job.kind === 'race' && job.gates) return job.gates[Math.min(m.raceGate, job.gates.length - 1)];
+  return job.target;
+}
+
+function moveMarker(m) {
+  const t = currentTarget(m);
+  if (!t) return;
+  if (m.marker) m.marker.position.set(t[0], 0, t[2]);
+  if (m.beacon) m.beacon.position.set(t[0], 23, t[2]);
+}
+
 export function startMission(m, scene, idx) {
   m.index = idx;
   m.escapeTimer = 0;
   m.heatSet = false;
-  if (!m.marker) m.marker = makeMarker(scene);
+  m.raceGate = 0;
   const job = currentMission(m);
-  if (!job) { m.marker.visible = false; return; }
-  m.marker.position.set(job.target[0], 0, job.target[2]);
+  m.timeLeft = job && job.timeLimit ? job.timeLimit : 0;
+  if (!m.marker) m.marker = makeMarker(scene);
+  if (!job) { m.marker.visible = false; if (m.beacon) m.beacon.visible = false; return; }
+  moveMarker(m);
   m.marker.visible = job.kind !== 'escape';
-  if (m.beacon) m.beacon.position.set(job.target[0], 23, job.target[2]);
   if (m.beacon) m.beacon.visible = job.kind !== 'escape';
 }
 
 // Returns an event string when something mission-relevant happened:
-// 'complete' (job paid), 'progress' or null.
+// 'complete' (job paid), 'story' (final job paid) or null.
 export function updateMissions(m, G, dt) {
   const job = currentMission(m);
   if (!job || m.storyDone) return null;
@@ -65,6 +87,34 @@ export function updateMissions(m, G, dt) {
     const inSport = !G.player.onFoot && G.player.car && G.player.car.kind === 'sport';
     const d2 = (px - job.target[0]) ** 2 + (pz - job.target[2]) ** 2;
     if (inSport && d2 < 49) return completeMission(m, G);
+  } else if (job.kind === 'race') {
+    m.timeLeft -= dt;
+    if (m.timeLeft <= 0) {
+      // Out of time: reset the gates and the clock, no other penalty.
+      m.raceGate = 0;
+      m.timeLeft = job.timeLimit;
+      moveMarker(m);
+      G.flashMessage('Out of time! The Checkpoint Run restarts — hit gate 1 again.', 4);
+      return null;
+    }
+    const gate = job.gates[m.raceGate];
+    const d2 = (px - gate[0]) ** 2 + (pz - gate[2]) ** 2;
+    if (d2 < 64) {
+      m.raceGate++;
+      G.audio?.coin();
+      if (m.raceGate >= job.gates.length) return completeMission(m, G);
+      moveMarker(m);
+      G.flashMessage('Gate ' + m.raceGate + '/' + job.gates.length + ' cleared — next gate!', 3);
+    }
+  } else if (job.kind === 'timed') {
+    m.timeLeft -= dt;
+    if (m.timeLeft <= 0) {
+      m.timeLeft = job.timeLimit;
+      G.flashMessage('Too late — the buyer cooled off. The Rush Delivery timer restarts.', 4);
+      return null;
+    }
+    const d2 = (px - job.target[0]) ** 2 + (pz - job.target[2]) ** 2;
+    if (d2 < 36) return completeMission(m, G);
   } else if (job.kind === 'escape') {
     // The job only counts once the heat is real: put two stars on the
     // player the moment the escape starts, then wait for them to clear.

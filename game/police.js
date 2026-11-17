@@ -35,7 +35,7 @@ export function updateWanted(w, dt, committingCrime) {
 
 // Spawn (or reuse) the right number of patrol cars for the wanted level.
 export function ensurePolice(scene, police, wantedLevel, playerPos) {
-  const want = wantedLevel === 0 ? 0 : wantedLevel <= 2 ? 1 : wantedLevel <= 4 ? 2 : 3;
+  const want = wantedLevel === 0 ? 0 : wantedLevel <= 2 ? 1 : wantedLevel <= 4 ? 2 : 4;
   while (police.cars.length < want) {
     const i = police.cars.length;
     const a = (i / 3) * Math.PI * 2 + 0.7;
@@ -79,7 +79,14 @@ export function ensurePolice(scene, police, wantedLevel, playerPos) {
 export function updatePolice(police, dt, player, colliders, onCaught) {
   const px = player.onFoot ? player.x : player.car.x;
   const pz = player.onFoot ? player.z : player.car.z;
+  // Light bars blink red/blue against each other, twice a second.
+  const blinkOn = Math.floor(performance.now() / 420) % 2 === 0;
   for (const car of police.cars) {
+    const bar = car.mesh.userData.lightBar;
+    if (bar) {
+      bar.redMesh.visible = blinkOn;
+      bar.blueMesh.visible = !blinkOn;
+    }
     const targetYaw = Math.atan2(px - car.x, pz - car.z);
     car.yaw += clamp(angleDiff(car.yaw, targetYaw), -2.4 * dt, 2.4 * dt);
     car.speed = Math.min(car.speed + 12 * dt, TUNING.policeSpeed + (player.car ? 4 : 0));

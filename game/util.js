@@ -51,6 +51,44 @@ export function facadeTexture(THREE, rng, wall, roof, floors) {
   return tex;
 }
 
+// A vertical gradient sky for golden hour: warm peach at the horizon
+// melting up into soft coastal blue. Used as the scene background.
+export function skyTexture(THREE) {
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 512;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 0, 512);
+  grad.addColorStop(0, '#5f9fd0');
+  grad.addColorStop(0.45, '#a8d4e8');
+  grad.addColorStop(0.72, '#ffd9a3');
+  grad.addColorStop(0.92, '#ffb37e');
+  grad.addColorStop(1, '#ff9e7a');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 4, 512);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+// A dark reflective glass facade: deep blue panes with a few catching
+// the low sun. Used for the glass tower variant in the city.
+export function glassTexture(THREE, rng) {
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 256;
+  const g = c.getContext('2d');
+  g.fillStyle = '#2e4a5e'; g.fillRect(0, 0, 128, 256);
+  for (let r = 0; r < 12; r++) {
+    for (let col = 0; col < 4; col++) {
+      const warm = rng() < 0.22;
+      g.fillStyle = warm ? '#ffca7a' : (rng() < 0.5 ? '#4d7d99' : '#223c4f');
+      g.fillRect(10 + col * 29, 14 + r * 20, 20, 13);
+    }
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // Paint the whole ground (roads, sidewalks, grass, plaza, sand, water edge)
 // onto one big canvas so the city floor costs a single draw call.
 export function groundTexture(THREE, lines, roadW, half) {

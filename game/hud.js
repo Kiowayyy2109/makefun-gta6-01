@@ -1,8 +1,8 @@
-// HUD: money, health, wanted stars, clock, objective banner, speed and
-// the round minimap drawn on a 2D canvas (player, police, cars, walkers,
-// mission marker, north arrow).
+// HUD: money, health, wanted stars, clock, parcels counter, objective
+// banner, speed and the round minimap drawn on a 2D canvas (player,
+// police, cars, walkers, mission marker, north arrow).
 import { WORLD, MISSIONS } from './config.js';
-import { currentMission } from './missions.js';
+import { currentMission, currentTarget } from './missions.js';
 
 export function createHud() {
   return {
@@ -10,6 +10,7 @@ export function createHud() {
     stars: document.getElementById('stars'),
     health: document.getElementById('healthfill'),
     clock: document.getElementById('clock'),
+    parcels: document.getElementById('parcels'),
     objTitle: document.getElementById('objTitle'),
     objText: document.getElementById('objText'),
     speed: document.getElementById('speed'),
@@ -44,16 +45,28 @@ export function updateHud(h, G, dt) {
   const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
   const mm = String(totalMin % 60).padStart(2, '0');
   h.clock.textContent = hh + ':' + mm + ' · Port Aurelia';
+  if (h.parcels) {
+    const found = G.parcels ? G.parcels.found : 0;
+    const total = G.parcels ? G.parcels.total : 12;
+    h.parcels.textContent = '📦 Parcels ' + found + '/' + total;
+  }
   const job = currentMission(G.missions);
   if (job) {
     h.objTitle.textContent = job.title + '  —  $' + job.reward;
-    // During the escape job, show the live countdown instead of the static text.
-    h.objText.textContent = job.kind === 'escape' && G.wanted.level === 0
-      ? 'Stay clean… ' + Math.max(0, 6 - Math.floor(G.missions.escapeTimer)) + 's until the heat is off.'
-      : job.text;
+    if (job.kind === 'escape' && G.wanted.level === 0) {
+      h.objText.textContent = 'Stay clean… ' + Math.max(0, 6 - Math.floor(G.missions.escapeTimer)) + 's until the heat is off.';
+    } else if (job.kind === 'race') {
+      const gates = job.gates ? job.gates.length : 5;
+      h.objText.textContent = 'Gate ' + Math.min(G.missions.raceGate + 1, gates) + '/' + gates
+        + ' · ' + Math.max(0, Math.ceil(G.missions.timeLeft)) + 's — ' + job.text;
+    } else if (job.kind === 'timed') {
+      h.objText.textContent = Math.max(0, Math.ceil(G.missions.timeLeft)) + 's left — ' + job.text;
+    } else {
+      h.objText.textContent = job.text;
+    }
   } else {
     h.objTitle.textContent = 'Story complete!';
-    h.objText.textContent = 'All five jobs done. Port Aurelia is yours — free roam.';
+    h.objText.textContent = 'All seven jobs done. Port Aurelia is yours — free roam and parcel hunting.';
   }
   if (!p.onFoot && p.car) {
     h.speed.innerHTML = Math.round(Math.abs(p.car.speed) * 3.6) + ' <small>km/h · ' + p.car.kind.toUpperCase() + '</small>';
@@ -90,9 +103,11 @@ function drawMinimap(h, G) {
     ctx.fillStyle = color;
     ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI * 2); ctx.fill();
   };
+  if (G.parcels) for (const parc of G.parcels.list) if (!parc.taken) dot(parc.x, parc.z, 2, '#ffb52e');
   const job = currentMission(G.missions);
-  if (job && job.kind !== 'escape') {
-    const [mx, my] = toMap(job.target[0], job.target[2]);
+  const target = currentTarget(G.missions);
+  if (job && target && job.kind !== 'escape') {
+    const [mx, my] = toMap(target[0], target[2]);
     ctx.fillStyle = '#ffd23f';
     ctx.save(); ctx.translate(mx, my); ctx.rotate(Math.PI / 4);
     ctx.fillRect(-5, -5, 10, 10); ctx.restore();

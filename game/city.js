@@ -3,7 +3,7 @@
 // (axis-aligned boxes) the player and cars bump into.
 import * as THREE from 'three';
 import { WORLD, COLOURS } from './config.js';
-import { mulberry32, pick, range, facadeTexture, groundTexture } from './util.js';
+import { mulberry32, pick, range, facadeTexture, glassTexture, skyTexture, groundTexture } from './util.js';
 
 export function buildCity(scene, seed) {
   const rng = mulberry32(seed);
@@ -12,20 +12,21 @@ export function buildCity(scene, seed) {
   group.name = 'city';
   scene.add(group);
 
-  // Sky, light and fog: a bright coastal noon.
-  scene.background = new THREE.Color(COLOURS.sky);
-  scene.fog = new THREE.Fog(COLOURS.fog, 180, 520);
-  const hemi = new THREE.HemisphereLight(0xcfe8ff, 0x5d7a4a, 0.95);
+  // Sky, light and fog: golden hour over the bay — a peach-to-blue
+  // gradient sky, warm low sun and honey-coloured haze on the horizon.
+  scene.background = skyTexture(THREE);
+  scene.fog = new THREE.Fog(COLOURS.fog, 170, 520);
+  const hemi = new THREE.HemisphereLight(0xffe0b8, 0x5d7a4a, 0.85);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(COLOURS.sun, 1.9);
-  sun.position.set(120, 180, 60);
+  const sun = new THREE.DirectionalLight(COLOURS.sun, 2.1);
+  sun.position.set(150, 68, 110);
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.camera.left = -220; sun.shadow.camera.right = 220;
   sun.shadow.camera.top = 220; sun.shadow.camera.bottom = -220;
   sun.shadow.camera.far = 520;
   scene.add(sun);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  scene.add(new THREE.AmbientLight(0xffd9a3, 0.3));
 
   // Ground: one textured plane (roads, sidewalks, plaza, beach).
   const ground = new THREE.Mesh(
@@ -62,12 +63,18 @@ export function buildCity(scene, seed) {
         const w = range(rng, 18, 30), d = range(rng, 18, 30);
         const h = range(rng, 12, 62) * (rng() < 0.14 ? 1.8 : 1); // a few towers
         const wall = pick(rng, COLOURS.wall), roof = pick(rng, COLOURS.roof);
-        const key = wall + roof + Math.round(h / 12);
+        const isGlass = rng() < 0.3; // a third of the city wears dark glass
+        const key = (isGlass ? 'glass' : wall + roof) + Math.round(h / 12);
         let mat = facadeCache.get(key);
         if (!mat) {
-          mat = new THREE.MeshLambertMaterial({
-            map: facadeTexture(THREE, mulberry32(Math.floor(rng() * 1e9)), wall, roof, Math.max(3, Math.round(h / 9))),
-          });
+          mat = isGlass
+            ? new THREE.MeshLambertMaterial({
+              map: glassTexture(THREE, mulberry32(Math.floor(rng() * 1e9))),
+              emissive: 0x1a2c3a,
+            })
+            : new THREE.MeshLambertMaterial({
+              map: facadeTexture(THREE, mulberry32(Math.floor(rng() * 1e9)), wall, roof, Math.max(3, Math.round(h / 9))),
+            });
           facadeCache.set(key, mat);
         }
         const b = new THREE.Mesh(boxGeo, mat);
@@ -81,6 +88,16 @@ export function buildCity(scene, seed) {
         cap.scale.set(w + 0.6, 0.8, d + 0.6);
         cap.position.set(cx, h + 0.4, cz);
         group.add(cap);
+        // Rooftop props on some buildings: an AC box or a water tank,
+        // small silhouettes that make the skyline read as lived-in.
+        if (rng() < 0.45) {
+          const prop = new THREE.Mesh(boxGeo, new THREE.MeshLambertMaterial({ color: 0x8a939c }));
+          const pw = range(rng, 2.5, 5);
+          prop.scale.set(pw, range(rng, 1.2, 2.4), pw);
+          prop.position.set(cx + range(rng, -w / 4, w / 4), h + 0.8 + prop.scale.y / 2, cz + range(rng, -d / 4, d / 4));
+          prop.castShadow = true;
+          group.add(prop);
+        }
       }
     }
   }
@@ -112,13 +129,20 @@ export function buildCity(scene, seed) {
   const trunkMat = new THREE.MeshLambertMaterial({ color: 0x8a6a42 });
   const crown = new THREE.ConeGeometry(2.4, 3.2, 7);
   const crownMat = new THREE.MeshLambertMaterial({ color: 0x2f8a4a });
-  const trunks = new THREE.InstancedMesh(trunk, trunkMat, 48);
-  const crowns = new THREE.InstancedMesh(crown, crownMat, 48);
+  const trunks = new THREE.InstancedMesh(trunk, trunkMat, 96);
+  const crowns = new THREE.InstancedMesh(crown, crownMat, 96);
   let pi = 0;
-  for (let i = 0; i < 48; i++) {
-    const px = range(rng, -190, 190);
-    const pz = rng() < 0.6 ? range(rng, 172, 192) : range(rng, -60, 60);
-    if (Math.abs(px) < 58 && Math.abs(pz) < 58) continue;
+  for (let i = 0; i < 72; i++) {
+    let px, pz;
+    if (i < 14) {
+      // A ring of palms around the central plaza.
+      const a = (i / 14) * Math.PI * 2;
+      px = Math.cos(a) * 60; pz = Math.sin(a) * 60;
+    } else {
+      px = range(rng, -190, 190);
+      pz = rng() < 0.6 ? range(rng, 172, 192) : range(rng, -60, 60);
+      if (Math.abs(px) < 58 && Math.abs(pz) < 58) continue;
+    }
     dummy.position.set(px, 3, pz); dummy.updateMatrix();
     trunks.setMatrixAt(pi, dummy.matrix);
     dummy.position.set(px, 7.4, pz); dummy.updateMatrix();

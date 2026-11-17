@@ -30,6 +30,20 @@ export function spawnPedestrians(scene, seed, count) {
   const peds = [];
   for (let i = 0; i < count; i++) {
     const mesh = makePedMesh(rng);
+    // The last eight walkers stroll the beach promenade and the plaza
+    // edge instead of the sidewalks, so the shore feels alive.
+    if (i >= count - 8) {
+      const alongB = range(rng, -180, 180);
+      mesh.position.set(alongB, 0, 184);
+      scene.add(mesh);
+      peds.push({
+        mesh, x: alongB, z: 184, axis: 'x', line: 180, off: 4,
+        dir: rng() < 0.5 ? 1 : -1,
+        speed: range(rng, 1.1, TUNING.pedSpeed + 0.9),
+        walkPhase: rng() * 6, alive: true, scared: 0,
+      });
+      continue;
+    }
     const axis = rng() < 0.5 ? 'x' : 'z';
     const line = pick(rng, WORLD.roadLines);
     const along = range(rng, -180, 180);
