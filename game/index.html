@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Port Aurelia — Open City Crime Story</title>
+<style>
+  html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#0b1c2c;
+    font-family:Verdana,Arial,sans-serif;color:#fff}
+  #app{position:fixed;inset:0}
+  canvas{display:block}
+  #hud{position:fixed;inset:0;pointer-events:none;display:none;z-index:5}
+  #hud .panel{background:rgba(8,18,28,.72);border:1px solid rgba(255,255,255,.22);
+    border-radius:8px;padding:8px 12px}
+  #topleft{position:absolute;top:12px;left:12px}
+  #healthbar{width:210px;height:14px;background:#222;border:1px solid #fff3;border-radius:7px;overflow:hidden;margin-top:6px}
+  #healthfill{height:100%;width:100%;background:linear-gradient(90deg,#37d67a,#a8e63f)}
+  #money{font-size:22px;font-weight:bold;color:#7dff9b;text-shadow:0 2px 4px #000}
+  #stars{font-size:26px;letter-spacing:4px;color:#ffd23f;text-shadow:0 0 8px #000;margin-top:2px}
+  #stars .off{color:rgba(255,255,255,.28)}
+  #clock{font-size:15px;color:#cfe8ff;margin-top:2px}
+  #objective{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    text-align:center;min-width:340px;max-width:560px}
+  #objective b{color:#ffd23f;font-size:16px}
+  #objective div{font-size:14px;margin-top:2px}
+  #speed{position:absolute;right:16px;bottom:16px;font-size:30px;font-weight:bold;
+    text-shadow:0 2px 6px #000;text-align:right}
+  #speed small{font-size:13px;color:#cfe8ff;display:block}
+  #minimap{position:absolute;right:12px;top:12px;border:2px solid rgba(255,255,255,.5);
+    border-radius:50%;background:#0d2233;box-shadow:0 2px 10px #000}
+  #msg{position:absolute;left:50%;bottom:110px;transform:translateX(-50%);
+    font-size:20px;font-weight:bold;color:#ffe27a;text-shadow:0 2px 6px #000;text-align:center}
+  #hint{position:absolute;left:12px;bottom:12px;font-size:13px;color:#dfefff;
+    text-shadow:0 1px 3px #000}
+  #cross{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px 0 0 -4px;
+    border-radius:50%;background:#fff;box-shadow:0 0 4px #000;display:none}
+  #screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,rgba(6,24,40,.88),rgba(20,60,90,.55));z-index:10}
+  #screen .card{max-width:640px;width:92%;text-align:center;padding:28px 30px;
+    background:rgba(5,16,26,.82);border:1px solid #ffd23f55;border-radius:14px}
+  #screen h1{margin:0 0 4px;font-size:46px;letter-spacing:3px;color:#ffd23f;
+    text-shadow:0 3px 0 #7a4d00,0 6px 18px #000}
+  #screen h2{margin:0 0 14px;font-size:15px;letter-spacing:6px;color:#8fd8ff;font-weight:normal}
+  #screen p{font-size:14px;line-height:1.55;color:#e8f3ff;text-align:left}
+  #screen .ctrl{font-size:13px;color:#cfe8ff;text-align:left;line-height:1.7;
+    background:rgba(255,255,255,.06);border-radius:8px;padding:10px 14px;margin:12px 0}
+  #screen button{pointer-events:auto;cursor:pointer;font-size:19px;font-weight:bold;
+    color:#10202e;background:#ffd23f;border:0;border-radius:10px;padding:13px 34px;margin:6px}
+  #screen button.alt{background:#e8f3ff}
+  #screen button:hover{filter:brightness(1.08)}
+  #wasted{position:fixed;inset:0;display:none;align-items:center;justify-content:center;
+    flex-direction:column;z-index:20;background:rgba(20,0,0,.55)}
+  #wasted h1{font-size:84px;margin:0;color:#ff5a4e;letter-spacing:10px;text-shadow:0 4px 20px #000}
+  #wasted p{font-size:18px}
+  #wasted button{cursor:pointer;font-size:18px;font-weight:bold;color:#10202e;
+    background:#ffd23f;border:0;border-radius:10px;padding:12px 30px}
+</style>
+<script type="importmap">
+{"imports":{"three":"./vendor/three.module.min.js"}}
+</script>
+</head>
+<body>
+<div id="app"></div>
+<div id="hud">
+  <div id="topleft" class="panel">
+    <div id="money">$0</div>
+    <div id="stars"></div>
+    <div id="healthbar"><div id="healthfill"></div></div>
+    <div id="clock">10:00 &middot; Port Aurelia</div>
+  </div>
+  <div id="objective" class="panel"><b id="objTitle">Welcome to Port Aurelia</b><div id="objText"></div></div>
+  <canvas id="minimap" width="180" height="180"></canvas>
+  <div id="speed"></div>
+  <div id="msg"></div>
+  <div id="hint"></div>
+  <div id="cross"></div>
+</div>
+<div id="screen"><div class="card">
+  <h1>PORT AURELIA</h1>
+  <h2>SUN &middot; SMOKE &middot; SIRENS</h2>
+  <p>You are <b>Leo Mar&iacute;n</b>, a courier with a fast car, a faster temper and
+  debts all over the bay. <b>Nadia Cole</b> runs the jobs from a caf&eacute; on
+  Coral Row. Do her five jobs, keep the cash, and stay out of the cells of
+  the Aurelia Bay Police &mdash; or outrun them.</p>
+  <div class="ctrl">WASD walk &middot; Mouse look (click to lock) &middot; Shift run &middot; Space jump<br>
+  E steal / enter car &middot; F leave car &middot; Space brake while driving<br>
+  Click punch &middot; 2 pistol, click to shoot &middot; R reload &middot; H horn &middot; Esc pause &middot; M mute</div>
+  <button id="startBtn">START ENGINE</button>
+  <button id="continueBtn" class="alt" style="display:none">CONTINUE</button>
+  <p style="text-align:center;font-size:12px;color:#9fc3dd">An original game. No real city, person or brand is depicted. Progress saves in this browser.</p>
+</div></div>
+<div id="wasted"><h1 id="wastedTitle">WASTED</h1><p id="wastedText"></p><button id="retryBtn">TRY AGAIN</button></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>
