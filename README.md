@@ -1,8 +1,8 @@
 # Port Aurelia — Sun, Smoke & Sirens
 
-![gta6-01](https://make.fun/badge/gta6-01.svg)
-![rank](https://make.fun/badge/gta6-01/Kiowayyy2109/makefun-gta6-01/rank.svg)
-![reward](https://make.fun/badge/gta6-01/Kiowayyy2109/makefun-gta6-01/reward.svg)
+[![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/Kiowayyy2109/makefun-gta6-01/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/Kiowayyy2109/makefun-gta6-01/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
 An original open-world crime game for the make.fun **gta6-01** competition:
 explore the sun-soaked coastal city of **Port Aurelia** on foot and by car,
